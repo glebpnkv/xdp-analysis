@@ -5,9 +5,42 @@ from itertools import product
 from zipfile import ZipFile
 
 import pandas as pd
+import torch
+
+from ca_tcc.dataloader.dataloader import Load_Dataset
 
 
-class HARDataLoader:
+class HARDataset(Load_Dataset):
+    """Torch Dataset for HAR data with extra weak augmentation logic."""
+    def __init__(self,
+                 dataset,
+                 config,
+                 training_mode):
+        super(HARDataset, self).__init__(dataset, config, training_mode)
+        self.subject_id = dataset["subject_id"]
+        self.data_map = dataset["data_map"]
+
+    def _get_same_person_activity(self, y_index, subject_index):
+        cur_idx = self.data_map[y_index.item()][subject_index]
+        return self.x_data[torch.randint(len(cur_idx), (1,))[0]]
+
+    def __getitem__(self, index):
+        # Drawing a random value to determine which weak augmentation to use
+        # weak_aug_ctl = torch.where(torch.randn(1) > 0, 0.0, 1.0)
+
+        subject_index = self.subject_id[index].item()
+        y_index = self.y_data[index]
+        # weak_aug = self._get_same_person_activity(y_index, subject_index)
+        # weak_aug = weak_aug_ctl * weak_aug + (1 - weak_aug_ctl) * self.aug1[index]
+        weak_aug = self.aug1[index]
+
+        if self.training_mode == "self_supervised" or self.training_mode == "SupCon":
+            return self.x_data[index], y_index, weak_aug, self.aug2[index]
+        else:
+            return self.x_data[index], y_index, self.x_data[index], y_index
+
+
+class HARDataController:
     url = "https://archive.ics.uci.edu/static/public/240/human+activity+recognition+using+smartphones.zip"
 
     def __init__(self):
@@ -224,11 +257,13 @@ class HARDataLoader:
             sep='\s+',
             names=["label"]
         )
+        activity_label_offset = df_out["label"].min()
+        df_out["label"] = (df_out["label"] - activity_label_offset).astype(int)
         df_out.index.name = "sample"
 
         # Adding a column of activity names
         df_out["name"] = df_activity_names.set_index("activity").loc[
-            df_out["label"],
+            df_out["label"] + activity_label_offset,
             "name"
         ].values
 
