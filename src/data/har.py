@@ -7,10 +7,10 @@ from zipfile import ZipFile
 import pandas as pd
 import torch
 
-from ca_tcc.dataloader.dataloader import Load_Dataset
+from ca_tcc.dataloader.dataloader import LoadDataset
 
 
-class HARDataset(Load_Dataset):
+class HARDataset(LoadDataset):
     """Torch Dataset for HAR data with extra weak augmentation logic."""
     def __init__(self,
                  dataset,
@@ -32,9 +32,9 @@ class HARDataset(Load_Dataset):
         y_index = self.y_data[index]
         # weak_aug = self._get_same_person_activity(y_index, subject_index)
         # weak_aug = weak_aug_ctl * weak_aug + (1 - weak_aug_ctl) * self.aug1[index]
-        weak_aug = self.aug1[index]
 
         if self.training_mode == "self_supervised" or self.training_mode == "SupCon":
+            weak_aug = self.aug1[index]
             return self.x_data[index], y_index, weak_aug, self.aug2[index]
         else:
             return self.x_data[index], y_index, self.x_data[index], y_index
