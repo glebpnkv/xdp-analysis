@@ -4,9 +4,12 @@ import requests
 from itertools import product
 from zipfile import ZipFile
 
+import numpy as np
 import pandas as pd
 import torch
+from torch.utils.data import DataLoader
 
+from ca_tcc.config_files.HAR_Configs import Config
 from ca_tcc.dataloader.dataloader import LoadDataset
 
 
@@ -15,27 +18,40 @@ class HARDataset(LoadDataset):
     def __init__(self,
                  dataset,
                  config,
-                 training_mode):
+                 training_mode,
+                 use_subject_strong_aug: bool = False):
         super(HARDataset, self).__init__(dataset, config, training_mode)
         self.subject_id = dataset["subject_id"]
         self.data_map = dataset["data_map"]
+        self.use_subject_strong_aug: bool = use_subject_strong_aug
 
     def _get_same_person_activity(self, y_index, subject_index):
         cur_idx = self.data_map[y_index.item()][subject_index]
         return self.x_data[torch.randint(len(cur_idx), (1,))[0]]
 
     def __getitem__(self, index):
-        # Drawing a random value to determine which weak augmentation to use
-        # weak_aug_ctl = torch.where(torch.randn(1) > 0, 0.0, 1.0)
 
-        subject_index = self.subject_id[index].item()
         y_index = self.y_data[index]
-        # weak_aug = self._get_same_person_activity(y_index, subject_index)
-        # weak_aug = weak_aug_ctl * weak_aug + (1 - weak_aug_ctl) * self.aug1[index]
 
         if self.training_mode == "self_supervised" or self.training_mode == "SupCon":
+            # Fetching augmentations
             weak_aug = self.aug1[index]
-            return self.x_data[index], y_index, weak_aug, self.aug2[index]
+            strong_aug = self.aug2[index]
+
+            if self.use_subject_strong_aug:
+                # Getting a copy of the same activity by the same subject
+                subject_index = self.subject_id[index].item()
+                subject_strong_aug = self._get_same_person_activity(y_index, subject_index)
+
+                # Drawing a random value to determine which weak augmentation to use
+                weak_aug_ctrl = torch.where(torch.randn(1) > 0, 0.0, 1.0)
+                weak_aug = weak_aug_ctrl * self.x_data[index] + (1 - weak_aug_ctrl) * weak_aug
+
+                # Drawing a random value to determine which strong augmentation to use
+                strong_aug_ctrl = torch.where(torch.randn(1) > 0, 0.0, 1.0)
+                strong_aug = strong_aug_ctrl * subject_strong_aug + (1 - strong_aug_ctrl) * strong_aug
+
+            return self.x_data[index], y_index, weak_aug, strong_aug
         else:
             return self.x_data[index], y_index, self.x_data[index], y_index
 
@@ -268,3 +284,94 @@ class HARDataController:
         ].values
 
         return df_out
+
+    @staticmethod
+    def _make_torch_dataset(df_x, df_y):
+        ds_dict = {}
+
+        ds_dict["samples"] = torch.from_numpy(
+            np.stack(
+                df_x.groupby("sample").apply(lambda x: x.values),
+                axis=0
+            )
+        ).permute(0, 2, 1)  # Puts the channels into the 2nd dim in line with the CA-TCC model reqs. Weird
+
+        ds_dict["labels"] = torch.from_numpy(
+            (df_y["label"]).values
+        )
+
+        ds_dict["subject_id"] = torch.from_numpy(
+            df_x.reset_index("timestep").index.unique().to_frame()["subject_id"].values
+        )
+
+        df_map = df_x.reset_index("timestep").index.unique().to_frame(index=False)
+        df_map["label"] = df_y.loc[df_map['sample'], "label"]
+
+        ds_dict["data_map"] = df_map.groupby(
+            "label"
+        ).apply(
+            lambda x: {
+                int(y): torch.from_numpy(x.loc[x["subject_id"] == y, "sample"].unique())
+                for y in x["subject_id"].unique()
+            },
+            include_groups=False
+        ).to_dict()
+
+        return ds_dict
+
+    def write_torch_datasets(self, output_dir: str):
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Train data
+        ds_train = self._make_torch_dataset(self.df_train_x, self.df_train_y)
+        torch.save(
+            ds_train,
+            os.path.join(output_dir, "train.pt")
+        )
+
+        # Train data
+        ds_test = self._make_torch_dataset(self.df_test_x, self.df_test_y)
+        torch.save(
+            ds_test,
+            os.path.join(output_dir, "test.pt")
+        )
+
+    @staticmethod
+    def get_torch_datasets(output_dir,
+                           config: Config,
+                           training_mode: str,
+                           use_subject_strong_aug: bool = False):
+        train_dataset = torch.load(os.path.join(output_dir, "train.pt"), weights_only=False)
+        test_dataset = torch.load(os.path.join(output_dir, "test.pt"), weights_only=False)
+
+        train_dataset = HARDataset(
+            dataset=train_dataset,
+            config=config,
+            training_mode=training_mode,
+            use_subject_strong_aug=use_subject_strong_aug
+        )
+
+        test_dataset = HARDataset(
+            dataset=test_dataset,
+            config=config,
+            training_mode=training_mode,
+            use_subject_strong_aug=use_subject_strong_aug
+        )
+
+        train_dl = DataLoader(
+            dataset=train_dataset,
+            batch_size=config.batch_size,
+            shuffle=True,
+            drop_last=config.drop_last,
+            num_workers=0
+        )
+
+        test_dl = DataLoader(
+            dataset=test_dataset,
+            batch_size=config.batch_size,
+            shuffle=False,
+            drop_last=config.drop_last,
+            num_workers=0
+        )
+
+        return train_dl, test_dl
