@@ -26,8 +26,10 @@ class HARDataset(LoadDataset):
         self.use_subject_strong_aug: bool = use_subject_strong_aug
 
     def _get_same_person_activity(self, y_index, subject_index):
-        cur_idx = self.data_map[y_index.item()][subject_index]
-        return self.x_data[torch.randint(len(cur_idx), (1,))[0]]
+        cur_idx = self.data_map[y_index][subject_index]
+        return self.x_data[
+            cur_idx[torch.randint(len(cur_idx), (1,))[0]]
+        ]
 
     def __getitem__(self, index):
 
@@ -41,7 +43,7 @@ class HARDataset(LoadDataset):
             if self.use_subject_strong_aug:
                 # Getting a copy of the same activity by the same subject
                 subject_index = self.subject_id[index].item()
-                subject_strong_aug = self._get_same_person_activity(y_index, subject_index)
+                subject_strong_aug = self._get_same_person_activity(y_index.item(), subject_index)
 
                 # Drawing a random value to determine which weak augmentation to use
                 weak_aug_ctrl = torch.where(torch.randn(1) > 0, 0.0, 1.0)

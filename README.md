@@ -1,2 +1,2 @@
-# har_examples
+# har-examples
 Human Activity Recognition - Examples
