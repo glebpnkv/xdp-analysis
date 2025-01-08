@@ -24,6 +24,8 @@ dask = "^2024.10.0"
 h5py = "^3.12.1"
 seaborn = "^0.13.2"
 pyarrow = "^18.1.0"
+openpyxl = "^3.1.5"
+shap = "^0.46.0"
 
 
 [build-system]

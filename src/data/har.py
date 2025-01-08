@@ -15,11 +15,13 @@ from ca_tcc.dataloader.dataloader import LoadDataset
 
 class HARDataset(LoadDataset):
     """Torch Dataset for HAR data with extra weak augmentation logic."""
-    def __init__(self,
-                 dataset,
-                 config,
-                 training_mode,
-                 use_subject_strong_aug: bool = False):
+    def __init__(
+        self,
+        dataset,
+        config,
+        training_mode,
+        use_subject_strong_aug: bool = False
+    ):
         super(HARDataset, self).__init__(dataset, config, training_mode)
         self.subject_id = dataset["subject_id"]
         self.data_map = dataset["data_map"]
@@ -132,8 +134,10 @@ class HARDataController:
         )
 
     @staticmethod
-    def _make_features(data_file: ZipFile,
-                       subset: str) -> pd.DataFrame:
+    def _make_features(
+        data_file: ZipFile,
+        subset: str
+    ) -> pd.DataFrame:
         """
         Makes a DataFrame of raw HAR features (signals).
 
@@ -202,8 +206,10 @@ class HARDataController:
         return df_out
 
     @staticmethod
-    def _make_features_tr(data_file: ZipFile,
-                          subset: str) -> pd.DataFrame:
+    def _make_features_tr(
+        data_file: ZipFile,
+        subset: str
+    ) -> pd.DataFrame:
         """
         Makes a DataFrame of HAR features (processed signals).
 
@@ -248,9 +254,11 @@ class HARDataController:
         return df_out
 
     @staticmethod
-    def _make_targets(data_file: ZipFile,
-                      df_activity_names: pd.DataFrame,
-                      subset: str) -> pd.DataFrame:
+    def _make_targets(
+        data_file: ZipFile,
+        df_activity_names: pd.DataFrame,
+        subset: str
+    ) -> pd.DataFrame:
         """
         Makes a DataFrame of HAR targets.
 
@@ -331,7 +339,7 @@ class HARDataController:
             os.path.join(output_dir, "train.pt")
         )
 
-        # Train data
+        # Test data
         ds_test = self._make_torch_dataset(self.df_test_x, self.df_test_y)
         torch.save(
             ds_test,
@@ -339,10 +347,12 @@ class HARDataController:
         )
 
     @staticmethod
-    def get_torch_datasets(output_dir,
-                           config: Config,
-                           training_mode: str,
-                           use_subject_strong_aug: bool = False):
+    def get_torch_datasets(
+        output_dir,
+        config: Config,
+        training_mode: str,
+        use_subject_strong_aug: bool = False
+    ):
         train_dataset = torch.load(os.path.join(output_dir, "train.pt"), weights_only=False)
         test_dataset = torch.load(os.path.join(output_dir, "test.pt"), weights_only=False)
 
