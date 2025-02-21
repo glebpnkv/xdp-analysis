@@ -227,7 +227,7 @@ class HARDataController:
         """
         cur_path_names = os.path.join(
             "UCI HAR Dataset",
-            f"features.txt"
+            "features.txt"
         )
         df_names = pd.read_csv(
             io.BytesIO(data_file.read(cur_path_names)),

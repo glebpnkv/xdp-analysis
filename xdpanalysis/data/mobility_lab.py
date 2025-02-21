@@ -1,19 +1,21 @@
 import os
-import re
 from enum import Enum
 from pathlib import Path
-
 import h5py
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
-
 from ca_tcc.dataloader.augmentations import jitter, permutation
 from models.mobility_lab import MobilityLabConfigs
 
 
-summary_value_cols = ["Normative Mean", "Normative StDev", "Mean", "StDev"]
+SUMMARY_VALUE_COLS = [
+    "Normative Mean",
+    "Normative StDev",
+    "Mean",
+    "StDev"
+]
 
 
 def dataset_to_df_long(ds, name):
@@ -37,7 +39,7 @@ def dataset_to_df_long(ds, name):
 
     return df_out
 
-def process_key(dset, key):
+def process_key(dset, key) -> pd.DataFrame | None:
     df_out = pd.concat(
         [
             dataset_to_df_long(v, k)
@@ -111,11 +113,11 @@ def process_experiment_summary_file(file):
     df_out = pd.read_csv(
         file,
         skiprows=12,
-        usecols=["Measure"] + summary_value_cols
+        usecols=["Measure"] + SUMMARY_VALUE_COLS
     )
 
     # Fixing the formatting of numerical columns
-    for col in summary_value_cols:
+    for col in SUMMARY_VALUE_COLS:
         if not pd.api.types.is_numeric_dtype(df_out[col]):
             df_out[col] = pd.to_numeric(df_out[col].str.replace(",", "."), errors="coerce")
 

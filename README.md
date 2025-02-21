@@ -1,2 +1,4 @@
-# har-examples
-Human Activity Recognition - Examples
+# xdp-analysis
+Accompanying code to XDP Analysis project: analysing movement data.
+
+## Setup
