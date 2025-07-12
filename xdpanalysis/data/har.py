@@ -111,7 +111,7 @@ class HARDataController:
         df_activity_names = pd.read_csv(
             io.BytesIO(data_file.read("UCI HAR Dataset/activity_labels.txt")),
             header=None,
-            sep='\s+',
+            sep="\s+",
             names=["activity", "name"]
         )
 

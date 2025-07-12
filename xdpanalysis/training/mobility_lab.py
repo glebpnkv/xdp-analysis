@@ -255,4 +255,3 @@ def train_model(
         test_loss, test_acc = test_log["test_loss"], test_log["test_acc"]
 
         logger.debug(f'Test loss      :{test_loss:2.4f}\t | Test Accuracy      : {test_acc:2.4f}')
-        logger.close()

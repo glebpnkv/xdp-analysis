@@ -18,26 +18,35 @@ SUMMARY_VALUE_COLS = [
 ]
 
 
-def dataset_to_df_long(ds, name):
+def dataset_to_df_long(ds: h5py.Dataset, feature_name: str):
+    """
+    Convert a dataset to a long-form pandas DataFrame with specific columns.
+
+    This function processes a dataset stored in an array-like structure (HDF5, numpy, etc.), reshaping
+    the data into a long-form DataFrame suitable for analysis or visualization. It organizes the output
+    DataFrame with columns for step, feature name, channel index, and corresponding values. For
+    1-dimensional input data, it treats the dataset as single-channel by default.
+
+    Parameters:
+        ds (h5py.Dataset | np.ndarray): Input dataset, containing time-series or multidimensional data.
+        feature_name (str): Name of the feature associated with the dataset.
+
+    Returns:
+        pd.DataFrame: Long-form reshaped DataFrame with columns: ['step', 'feature', 'channel', 'value'].
+    """
     data = ds[()]
-
-    rows = data.shape[0]
-    cols = 1
-    if len(data.shape) > 1:
-        cols = data.shape[-1]
-
+    num_steps, *num_channels = data.shape  # Use unpacking to get num_channels, handles 1D and 2D cases
+    num_channels = num_channels[0] if num_channels else 1  # if num_channels is empty (1D), default to 1.
     reshaped_data = data.reshape(-1)
-
     df_out = pd.DataFrame({
-        "step": np.repeat(np.arange(rows), cols),
-        "channel": np.tile(np.arange(cols), rows),
+        "step": np.repeat(np.arange(num_steps), num_channels),
+        "channel": np.tile(np.arange(num_channels), num_steps),
         "value": reshaped_data
     })
-    df_out["feature"] = name.lower()
-
+    df_out["feature"] = feature_name.lower()
     df_out = df_out[["step", "feature", "channel", "value"]]
-
     return df_out
+
 
 def process_key(dset, key) -> pd.DataFrame | None:
     df_out = pd.concat(
@@ -64,31 +73,25 @@ def process_group(dset):
 
 def process_experiment_file(file):
     # Reading h5 file
-    f = h5py.File(file, 'r')
+    with h5py.File(file, 'r') as f:
+        file_groups = [
+            k for k, v in f.items()
+            if isinstance(v, h5py.Group)
+        ]
 
-    file_groups = [
-        k for k, v in f.items()
-        if isinstance(v, h5py.Group)
-    ]
+        if len(file_groups) == 0:
+            return None
 
-    if len(file_groups) == 0:
-        return None
-
-    out = []
-
-    # Iterating over groups
-    for cur_group in file_groups:
-        out.append(
-            process_group(f[cur_group])
-        )
+        # Iterating over groups
+        out = [process_group(f[cur_group]) for cur_group in file_groups]
 
     df_out = pd.concat(out, ignore_index=True)
 
     # Reshaping back to wide format
     df_out = df_out.pivot(
-        columns=['feature', 'channel'],
-        index=['key', 'step'],
-        values='value'
+        columns=["feature", "channel"],
+        index=["key", "step"],
+        values="value"
     )
 
     if df_out.empty:

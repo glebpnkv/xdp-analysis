@@ -6,10 +6,19 @@ authors = ["Gleb Pankov"]
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "accelerate>=1.4.0",
+    "bokeh>=3.6.3",
+    "colorcet>=3.1.0",
+    "datashader>=0.17.0",
     "einops>=0.8.1",
     "h5py>=3.13.0",
+    "holoviews>=1.20.1",
+    "iprogress>=0.4",
     "matplotlib>=3.10.0",
+    "openpyxl>=3.1.5",
     "pandas>=2.2.3",
+    "pyarrow>=19.0.1",
+    "scikit-image>=0.25.2",
     "scikit-learn>=1.6.1",
     "seaborn>=0.13.2",
     "shap>=0.46.0",
@@ -19,5 +28,6 @@ dependencies = [
 ]
 [dependency-groups]
 dev = [
+    "ipywidgets>=8.1.5",
     "jupyterlab>=4.3.5",
 ]
